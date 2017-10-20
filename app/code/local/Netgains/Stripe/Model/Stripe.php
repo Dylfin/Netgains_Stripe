@@ -106,7 +106,10 @@ class Netgains_Stripe_Model_Stripe extends Mage_Payment_Model_Method_Cc
 				/*
 				 * This method is used to display extra informatoin on transaction page
 				*/
-				$payment->setTransactionAdditionalInfo(Mage_Sales_Model_Order_Payment_Transaction::RAW_DETAILS,array('key1'=>'value1','key2'=>'value2'));
+				$payment->setTransactionAdditionalInfo(
+					Mage_Sales_Model_Order_Payment_Transaction::RAW_DETAILS,
+                    array('address_zip_check'=>$result['address_zip_check'],'cvc_check'=>$result['cvc_check'])
+                );
 
 
 				$order->addStatusToHistory($order->getStatus(), 'Payment Sucessfully Placed with Transaction ID'.$result['transaction_id'], false);
@@ -160,7 +163,14 @@ class Netgains_Stripe_Model_Stripe extends Mage_Payment_Model_Method_Cc
 				{
 					$createtoken= Stripe_Token::create(array( "card" => array( "number" => $payment->getCcNumber(), "exp_month" => $payment->getCcExpMonth(), "exp_year" => $payment->getCcExpYear(), "cvc" => $payment->getCcCid(),"name"=>$billingaddress->getData('firstname').' '.$billingaddress->getData('lastname'),"address_line1"=>$billingaddress->getData('street'),"address_city"=>$billingaddress->getData('city'),"address_state"=>$billingaddress->getData('region'),"address_zip"=>$billingaddress->getData('postcode'),"address_country"=>$billingaddress->getData('country_id'),"customer"=>Mage::getSingleton('customer/session')->getCustomerId() ) ));
 					$createcharge=Stripe_Charge::create(array( "amount" => $totals*100, "currency" => $currencyDesc, "card" => $createtoken->id,"statement_descriptor"=>$storeId,"description" => sprintf('#%s, %s', $orderId, $order->getCustomerEmail())));
-					return array('status'=>1,'transaction_id' => $createcharge->id,'fraud' => rand(0,1));
+                    $result = array(
+                        'status'=>1,'transaction_id' => $createcharge->id, 'fraud' => rand(0,1)
+                    );
+                    if($createcharge->source!==null){
+                        $result['address_zip_check'] = $createcharge->source->address_zip_check;
+                        $result['cvc_check'] = $createcharge->source->cvc_check;
+                    }
+					return $result;
 				} 
 			catch (Exception $e) 
 				{
